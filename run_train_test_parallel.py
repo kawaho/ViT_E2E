@@ -33,6 +33,7 @@ from sklearn import metrics
 
 parser = argparse.ArgumentParser(description='Script to run training of ViT models')
 parser.add_argument('-d', '--dataset', type=str, default='QG', help='dataset to train (default: %(default)s)')
+parser.add_argument('-gpu', '--gpu', type=int, default=2, help='number of gpu to use (default: %(default)s)')
 parser.add_argument('-p', '--patch', type=int, default=2, help='patch size (default: %(default)s)')
 parser.add_argument('-w', '--win', type=str, default='4', help='window size separated by commas (default: %(default)s)')
 parser.add_argument('-e', '--emb', type=int, default=48, help='embedding dimension (default: %(default)s)')
@@ -71,7 +72,7 @@ config = {
     "model": swin_based_model,
     "log_intr": 100,
     "n_workers": 0,
-    "ngpu": 2,
+    "ngpu": args.gpu,
     "batch_size": 96,
     "optimizer": [torch.optim.AdamW, {'lr': 0.0001, 'weight_decay': 0.05}], 
     "scheduler": [torch.optim.lr_scheduler.ReduceLROnPlateau, {'threshold': 0.001, 'patience': 3, 'factor': 0.5}],
