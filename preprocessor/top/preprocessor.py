@@ -1,37 +1,26 @@
 import numpy as np
 import pyarrow.parquet as pq
 
-from tqdm import tqdm
-import torch
 import math
 import os
-import cv2
-import time
-import multiprocessing
+import glob
+import tensorflow as tf
 
-def generate(pf, path, which_file, mean_std):
-    sum_channel, sum2_channel, size = np.array([0,0,0,0,0,0,0,0]), np.array([0,0,0,0,0,0,0,0]), 0
+def _image_feature(value):
+    """Returns a bytes_list from a string / byte."""
+    return tf.train.Feature(
+        bytes_list=tf.train.BytesList(value=[tf.io.encode_png(value).numpy()])
+    )
 
-    batch_size = pf.num_row_groups
-    nchunks = math.ceil(pf.num_row_groups/batch_size)
-    record_batch = pf.iter_batches(batch_size=batch_size)
-    for which_batch in range(nchunks):
-        batch = next(record_batch)
+def _int64_feature(value):
+    """Returns an int64_list from a bool / enum / int / uint."""
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-        sum_channel_tmp, sum2_channel_tmp, size_tmp = process(batch, path, which_file, which_batch, mean_std)
+def _bytes_feature(value):
+    """Returns a bytes_list from a string / byte."""
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode()]))
 
-        sum_channel+=sum_channel_tmp
-        sum2_channel+=sum2_channel_tmp
-        size+=size_tmp
-    return sum_channel, sum2_channel, size
-
-def process(batch, path, which_file, which_batch, mean_std):
-    p = batch.to_pandas()
-    im = np.array(p.iloc[:,0].tolist()).reshape((-1,125,125,8))
-    meta = np.array(p.iloc[:,1]).astype(np.bool_)
-    return saver(path, im, meta, which_file, which_batch, mean_std)
-
-def png_helper(im, mean_channels, std_channels, use_mean_std):
+def tf_helper(im, meta, writer, which_file, which_batch, mean_channels, std_channels, use_mean_std):
     B, C, H, W = im.shape
     sum_channel, sum2_channel, size = np.array([0,0,0,0,0,0,0,0]), np.array([0,0,0,0,0,0,0,0]), 0
     
@@ -54,17 +43,19 @@ def png_helper(im, mean_channels, std_channels, use_mean_std):
       batch_std = im[:,:,:,c].std(axis=(1,2), keepdims=True)
       #Clip values < 0 or > 500 sigmas
       im[:,:,:,c][(im[:,:,:,c]<0)|(im[:,:,:,c]>500*batch_std)] = 0
+    for _b in range(B):
+      data = {} 
+      data['name'] = _bytes_feature(f'{which_file}_{which_batch}_{_b}')
+      data['label'] = _int64_feature(meta[_b])
+      for c in range(8):
+        data[f'ch{c}'] =  _image_feature(im[_b,:,:,c][:,:,None].astype(np.uint8))
 
-    im = im.astype(np.uint8)
-    
-    return im, sum_channel, sum2_channel, B*H*W
+      out = tf.train.Example(features=tf.train.Features(feature=data))
+      writer.write(out.SerializeToString()) 
 
-def mk_png(path, img, meta, which_file, which_batch, which_pic):
-    impath = path+f"/{meta}/{which_file}_{which_batch}_{which_pic}.png"
-    img = np.append(img, np.ones((125,125,1)), axis=2).reshape(-1,125,3)[:,:,::-1]
-    cv2.imwrite(impath, img)
+    return sum_channel, sum2_channel, B*H*W
 
-def saver(path, im, meta, which_file, which_batch, mean_std):
+def saver(path, im, meta, writer, which_file, which_batch, mean_std):
 
     if not (mean_std[0] is None):
       use_mean_std = True
@@ -72,14 +63,38 @@ def saver(path, im, meta, which_file, which_batch, mean_std):
     else:
       use_mean_std = False
       mean, std = np.array([0,0,0,0,0,0,0,0]), np.array([0,0,0,0,0,0,0,0])
-    im, sum_channel, sum2_channel, size = png_helper(im, mean, std, use_mean_std)
-   
-    with multiprocessing.Pool(processes=16) as pool:
-        pool.starmap(mk_png, [(path, im[which_pic,:,:,:], int(meta[which_pic]), which_file, which_batch, which_pic) for which_pic in range(meta.shape[0])])
+
+    sum_channel, sum2_channel, size = tf_helper(im, meta, writer, which_file, which_batch, mean, std, use_mean_std)
 
     return sum_channel, sum2_channel, size
 
-def runner(source, indexes, target, mean_std=(None,None)):
+def process(batch, path, writer, which_file, which_batch, mean_std):
+    p = batch.to_pandas()
+    im = np.array(p.iloc[:,0].tolist()).reshape((-1,125,125,8))
+    meta = np.array(p.iloc[:,1]).astype(np.intc)
+    return saver(path, im, meta, writer, which_file, which_batch, mean_std)
+
+def generate(pf, path, writer, which_file, mean_std):
+    sum_channel, sum2_channel, size = np.array([0,0,0,0,0,0,0,0]), np.array([0,0,0,0,0,0,0,0]), 0
+
+    batch_size = pf.num_row_groups
+    nchunks = math.ceil(pf.num_row_groups/batch_size)
+    record_batch = pf.iter_batches(batch_size=batch_size)
+    for which_batch in range(nchunks):
+        batch = next(record_batch)
+        sum_channel_tmp, sum2_channel_tmp, size_tmp = process(batch, path, writer, which_file, which_batch, mean_std)
+        sum_channel+=sum_channel_tmp
+        sum2_channel+=sum2_channel_tmp
+        size+=size_tmp
+    return sum_channel, sum2_channel, size
+
+def runner(source, indexes, target, mean_std=(None,None), is_valid=False):
+    """
+    Fuction to convert all the Parquet Files in a given folder to .png format Files
+    Args:
+    source: The souce folder of the Parquet Files
+    target: The target folder where the dataset will be stored
+    """
 
     sumw, sumw2, size = np.array([0,0,0,0,0,0,0,0]), np.array([0,0,0,0,0,0,0,0]), 0
 
@@ -88,9 +103,18 @@ def runner(source, indexes, target, mean_std=(None,None)):
     print("The following files will be processed")
     print(files)
 
-    for i in tqdm(range(len(files))):
+    if mean_std[0] is None:
+      if is_valid:
+        sub_str = 'valid'
+      else:
+        sub_str = 'train'
+    else: 
+      sub_str = 'test'
+
+    writer = tf.io.TFRecordWriter(f"Top_TFRecords_shard_{sub_str}.tfrecords")
+    for i in range(len(files)):
         try:
-            sum_tmp, sum2_tmp, size_tmp = generate(pq.ParquetFile(files[i]), target, which_file=indexes[i], mean_std=mean_std)
+            sum_tmp, sum2_tmp, size_tmp = generate(pq.ParquetFile(files[i]), target, writer, which_file=indexes[i], mean_std=mean_std)
   
             sumw+=sum_tmp
             sumw2+=sum2_tmp 
@@ -98,19 +122,21 @@ def runner(source, indexes, target, mean_std=(None,None)):
         except:
             continue
 
+    writer.close() 
     mean, std = sumw/size, np.sqrt( sumw2/size - (sumw/size)**2 )
 
-    print('mean and std are ', mean, std)
     print("The files were successfully generated")
-    return mean, std
+    return sumw, sumw2, size
 
 if __name__=='__main__':
+    
+    os.makedirs("data/top/tf", exist_ok=True)
 
-    os.makedirs("data/top/train/0", exist_ok=True)
-    os.makedirs("data/top/train/1", exist_ok=True)
-    os.makedirs("data/top/test/0", exist_ok=True)
-    os.makedirs("data/top/test/1", exist_ok=True)
-
-    mean, std  = runner(source="data/top/parquet", indexes=range(1002), target="data/top/train")
-   
-    runner(source="data/top/parquet", indexes=range(1003,1250), target="data/top/test", mean_std=(mean, std))
+    sumw_t, sumw2_t, size_t  = runner(source="data/top/parquet", indexes=range(814), target="data/top/tf")
+    sumw_v, sumw2_v, size_v  = runner(source="data/top/parquet", indexes=range(814,1002), target="data/top/tf", is_valid=True)
+  
+    sumw = sumw_t+sumw_v
+    sumw2 = sumw2_t+sumw2_v
+    size = size_t+size_v
+    mean, std = sumw/size, np.sqrt( sumw2/size - (sumw/size)**2 )
+    runner(source="data/top/parquet", indexes=range(1003,1250), target="data/top/tf", mean_std=(mean, std))

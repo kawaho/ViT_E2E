@@ -109,7 +109,6 @@ def runner(source, mean_std=(None,None)):
 if __name__=='__main__':
 
     os.makedirs("data/QG/tensor", exist_ok=True)
-    os.makedirs("data/QG/tensor", exist_ok=True)
 
     mean, std = runner(source="data/QG/parquet/train")
     
