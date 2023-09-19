@@ -1,5 +1,5 @@
 # Vision Transformers for End-to-End Particle Reconstruction for the CMS Experiment
-This repository contains the code for the Google Summer of Code (GSoC) 2023 project: Vision Transformers (ViT) for End-to-End Particle Reconstruction for the CMS Experiment. The project is primarily written with python. Details of the project is summarized in the blog post.
+This repository contains the code for the Google Summer of Code (GSoC) 2023 project: Vision Transformers (ViT) for End-to-End Particle Reconstruction for the CMS Experiment. The project is primarily written with python. Details of the project is summarized in a two-part blog post: [part 1](https://medium.com/@kho2_97849/vision-transformers-for-end-to-end-particle-reconstruction-at-the-cms-experiment-75d5758a98f3) and [part 2](https://medium.com/@kho2_97849/vision-transformers-for-end-to-end-particle-reconstruction-at-the-cms-experiment-part-2-2-5773525466df).
 
 # Setup
 To install all the required package, do:
