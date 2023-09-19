@@ -39,25 +39,36 @@ python preprocessor/top/preprocessor.py
 # Training and testing
 This section uses the wandb package for logging. To setup an account, please visit https://wandb.ai.
 ## Swin transformer [3]
-To start the training and testing process, do
+To start the training and testing process of the quark-gluon dataset, do
 ```bash
 python run_train_test_parallel.py -sw
 ```
 The ```-sw``` flag here turns on the shifting window operation in Swin. User could modify the patch size with the flag ```-p``` followed by an integer, the window size with the flag ```-w``` followed by an integer, the embedding dimension with the flag ```-e``` followed by an integer, and the number of heads in each layer with the flag ```-h``` followed by comma separated integers. For the number of layers, it is fixed to be the same as Swin-Tiny as in [2]. The user could also modifiy the number of gpu used for the training/testing with the flag ```-gpu```.
+
+Similary, to start the training and testing process of the boosted top dataset, do
+```bash
+python run_train_test_TPU.py -sw
+```
+It makes use of the TPU cloud provided by Google. To see more details, please visit https://cloud.google.com/tpu. Same sets of input flags are available for the ```run_train_test_TPU.py``` script with the exception of the ```-gpu``` flag.
 
 ## Multi-scale Swin
 Multi-scale Swin (MSwin) employs various window sizes in the training by dividing the hidden dimension of the image equally for each window size. In this case, the various heads in the multi-head attention (MHA) mechansim would attend to a different window size. To start the training and testing process, do
 ```bash
 python run_train_test_parallel.py -sw -w 4,8,16
 ```
-The ```-w``` specifies that a model with window sizes of 4x4, 8x8, and 16x16 will be used.
+The ```-w``` specifies that a model with window sizes of 4x4, 8x8, and 16x16 will be used. Similarly, the ```run_train_test_TPU.py``` can be used for the boosted top dataset with the same option flags.
 
 ## Win [4]
 To start the training and testing process, do
 ```bash
 python run_train_test_parallel.py -cw
 ```
-The ```-cw``` flag and the absent of the ```-sw``` flag specify that a layer-wise convolution will be used in placed of the shifting window operation. Similar to SWin and MSWin, user could also alter the hyperparameters, like the hidden dimension, the window sizes or train with multi-scale windows.
+The ```-cw``` flag and the absent of the ```-sw``` flag specify that a layer-wise convolution will be used in placed of the shifting window operation. Similar to SWin and MSWin, user could also alter the hyperparameters, like the hidden dimension, the window sizes or train with multi-scale windows. Similarly, the ```run_train_test_TPU.py``` can be used for the boosted top dataset with the same option flags.
+
+# Acknowledgment
+Many thanks to Google for providing the free TPU Cloud service to make training of the boosted top dataset possible.
+
+Also, thanks to Dr. Sergei Gleyzer for his guidance during the project and Diptarko Choudhury for his valuable insights.
 
 # References
 [1]: Andrews, Michael, et al. “End-to-end jet classification of quarks and gluons with the CMS Open Data.” Nuclear instruments and methods in physics research section A: accelerators, spectrometers, detectors and associated equipment 977 (2020): 164304.
