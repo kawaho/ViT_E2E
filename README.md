@@ -10,6 +10,8 @@ pip install -r requirements.txt
 
 # Download and preprocess the dataset
 
+## Quark-Gluon dataset
+
 To obtain the quark-gluon dataset [1], please email the ML4SCI organisation at ml4-sci@cern.ch. After downloading the quark-gluon dataset, create the following folders
 ```bash
 mkdir -p ./data/QG/parquet/train
@@ -26,9 +28,17 @@ python preprocessor/QG/preprocessor.py
 ```
 , which will create two PyTorch files ```data/QG/tensor/train.pt``` and ```data/QG/tensor/test.pt``` storing the images in tensor ready for model training and testing.
 
+## Boosted Top dataset
+
+Similarly, to download the boosted top dataset [2], please email the ML4SCI organisation at ml4-sci@cern.ch. After downloading the dataset, place the parquet files in ```./data/top/parquet```. The raw images have to be preprocessed in a similar way to the quark-gluon dataset. To preprocess the dataset, do
+```bash
+python preprocessor/top/preprocessor.py
+```
+, which will process the files to the TFRecord format ready for training/validation/testing!
+
 # Training and testing
 This section uses the wandb package for logging. To setup an account, please visit https://wandb.ai.
-## Swin transformer [2]
+## Swin transformer [3]
 To start the training and testing process, do
 ```bash
 python run_train_test_parallel.py -sw
@@ -42,7 +52,7 @@ python run_train_test_parallel.py -sw -w 4,8,16
 ```
 The ```-w``` specifies that a model with window sizes of 4x4, 8x8, and 16x16 will be used.
 
-## Win [3]
+## Win [4]
 To start the training and testing process, do
 ```bash
 python run_train_test_parallel.py -cw
@@ -52,6 +62,8 @@ The ```-cw``` flag and the absent of the ```-sw``` flag specify that a layer-wis
 # References
 [1]: Andrews, Michael, et al. “End-to-end jet classification of quarks and gluons with the CMS Open Data.” Nuclear instruments and methods in physics research section A: accelerators, spectrometers, detectors and associated equipment 977 (2020): 164304.
 
-[2]: Liu, Ze, et al. “Swin transformer: Hierarchical vision transformer using shifted windows.” Proceedings of the IEEE/CVF international conference on computer vision. 2021.
+[2]: Andrews, Michael, et al. "End-to-end jet classification of boosted top quarks with the CMS open data." Physical Review D 105.5 (2022): 052008.
 
-[3]: Yu, Tan, and Ping Li. “Degenerate Swin to win: Plain window-based transformer without sophisticated operations.” arXiv preprint arXiv:2211.14255 (2022).
+[3]: Liu, Ze, et al. “Swin transformer: Hierarchical vision transformer using shifted windows.” Proceedings of the IEEE/CVF international conference on computer vision. 2021.
+
+[4]: Yu, Tan, and Ping Li. “Degenerate Swin to win: Plain window-based transformer without sophisticated operations.” arXiv preprint arXiv:2211.14255 (2022).
