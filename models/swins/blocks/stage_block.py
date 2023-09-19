@@ -67,7 +67,7 @@ class BasicLayer(keras.Model):
                 num_heads=num_heads,
                 head_dim=head_dim,
                 window_size=window_size,
-                shift_size=tuple(_//2 for _ in window_size) if ((i % 2 != 0) and shift_win) else tuple(0 for _ in window_size),
+                shift_size=tuple(_//2 for _ in list(window_size)) if ((i % 2 != 0) and shift_win) else tuple(0 for _ in list(window_size)),
                 conv_win=conv_win,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,

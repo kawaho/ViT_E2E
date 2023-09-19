@@ -203,9 +203,9 @@ class SwinTransformerBlock(keras.Model):
             x_list.append(x_sub)
 
         x = tf.concat(x_list, 3)
-        x = tf.reshape(shortcut, (B, H, W, C)) + self.drop_path(x)
 
         if self.conv_win:
+            x = tf.reshape(shortcut, (B, H, W, C)) + self.drop_path(x)
             x = self.norm2(x)
             for _ in range(self.window_types):
                 x_sub = x[:,:,:,_*C//self.window_types:(_+1)*C//self.window_types]
